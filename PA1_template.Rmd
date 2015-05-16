@@ -1,25 +1,93 @@
----
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
----
+## Reproducible Research: Peer Assessment 1
+
+### Loading and preprocessing the data
+
+```{r, echo=TRUE}
+activity<-read.csv("activity.csv" , header=TRUE)
+head(activity)
+```
+
+```{r, echo=TRUE}
+library(lattice)
+activity$date<-as.Date(activity$date,format = '%Y-%m-%d')
+```
+
+### What is mean total number of steps taken per day?
+
+```{r, echo=TRUE}
+TotalStepsByDay <-aggregate(steps~date, data=activity,sum, na.rm=TRUE)
+head(TotalStepsByDay)
+```
+
+```{r, echo=TRUE}
+histogram(TotalStepsByDay$steps, main="Total Number of Steps by Day", xlab="Daily Steps")
+```
+
+```{r, echo=FALSE}
+meanSteps<- mean(TotalStepsByDay$steps)
+medianSteps<-median(TotalStepsByDay$steps)
+```
+
+On average, the number of steps taken per day is `r meanSteps` and the median is `r medianSteps` 
 
 
-## Loading and preprocessing the data
+### What is the average daily activity pattern?
 
+```{r, echo=TRUE}
+AverageStepsByInterval <-aggregate(steps~interval, data=activity, mean, na.rm=TRUE)
+plot(AverageStepsByInterval$interval, AverageStepsByInterval$steps, type="l",xlab="Interval",ylab="Average Steps", main="Average Number of Steps",col="blue")
+```
 
+```{r, echo=TRUE, results="hide"}
+maxSteps<-AverageStepsByInterval$interval[which.max(AverageStepsByInterval$steps)]
+```
 
-## What is mean total number of steps taken per day?
+on average, the 5-minute interval that contains the maximum number of steps is `r maxSteps`
 
+### Imputing missing values
 
+```{r, echo=TRUE}
+sum(is.na(activity$steps))
+```
+We replace the NAs with the average number of steps by interval calculated before on the same interval.
 
-## What is the average daily activity pattern?
+```{r, echo=TRUE}
+activityNoNA <- activity
+for(i in 1:nrow(activityNoNA)){
+  if (is.na(activityNoNA$steps[i])) {
+    replace <- AverageStepsByInterval$steps[AverageStepsByInterval$interval == activityNoNA$interval[i]];
+    activityNoNA$steps[i] <- replace;
+  }
+}
 
+sum(is.na(activityNoNA$steps))
+```
 
+```{r, echo=TRUE}
+TotalStepsByDayNoNA <- aggregate(steps ~ date, data=activityNoNA, sum)
+histogram(TotalStepsByDayNoNA$steps, main="Total Number of Steps by Day", xlab="Daily Steps")
+```
 
-## Imputing missing values
+The total number of steps increased around the mean as a result of replacing the missing values.
 
+```{r, echo=TRUE}
+mean(TotalStepsByDayNoNA$steps, na.rm=TRUE)
+```
 
+```{r, echo=TRUE}
+median(TotalStepsByDayNoNA$steps, na.rm=TRUE)
+```
+The mean and median have very slightly increased.
 
-## Are there differences in activity patterns between weekdays and weekends?
+### Are there differences in activity patterns between weekdays and weekends?
+
+```{r, echo=TRUE}
+activityNoNA$day <- "Weekday"
+activityNoNA$day[weekdays(as.Date(activityNoNA$date), abb=T) %in% c("Sat","Sun")]<-"Weekend"
+table(activityNoNA$day)
+```
+
+```{r, echo=TRUE}
+TotalStepsByIntervalNoNADay <- aggregate(steps ~ interval + day, data=activityNoNA, FUN="mean")
+xyplot(steps ~ interval | day, data=TotalStepsByIntervalNoNADay, type="l", grid=T, layout=c(1,2), ylab="Number of Steps", xlab="Interval", main="Average 5-min Activity Intervals on Weekdays vs Weekends")
+```
